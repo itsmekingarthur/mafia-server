@@ -84,12 +84,25 @@ export function rejoin(code, key) {
   return { code: room.code, key: p.key };
 }
 
+function cleanupKicked(room, key) {
+  room.nightActors = (room.nightActors || []).filter((k) => k !== key);
+  delete room.mafiaVotes[key];
+  delete room.votes[key];
+  delete room.discussSkips[key];
+  if (room.doctorTarget === key) room.doctorTarget = null;
+  if (room.scoutTarget === key) room.scoutTarget = null;
+  if (room.lastScout && room.lastScout.target === key) room.lastScout = null;
+  if (room.nightVictim === key) room.nightVictim = null;
+  if (room.executedKey === key) room.executedKey = null;
+}
+
 export function kickPlayer(room, targetKey) {
-  if (room.phase !== 'waiting') return;
   const p = room.players.get(targetKey);
   if (!p) return;
   room.players.delete(targetKey);
   if (room.hostKey === targetKey && room.players.size) room.hostKey = [...room.players.keys()][0];
+  if (room.phase !== 'waiting') cleanupKicked(room, targetKey);
+  if (room.players.size === 0) { destroyRoom(room); return p; }
   broadcastRoom(room.code);
   return p;
 }
